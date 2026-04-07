@@ -1,0 +1,13 @@
+v-scroll [part="track"] {
+  width: var(--track-w, 10px);
+  background: transparent;
+}
+
+v-scroll [part="bar"] {
+  background: rgba(0,0,0,0.25);
+}
+
+v-scroll [part="bar"]:hover,
+v-scroll [part="bar"]:active {
+  background: rgba(0,0,0,0.45);
+}

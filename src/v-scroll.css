@@ -1,0 +1,78 @@
+v-scroll {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  --track-width: 14px;
+  --bar-width: 5px;
+  --track-bg: rgba(0,0,0,0.08);
+  --bar-color: rgba(0,0,0,0.3);
+  --bar-color-hover: rgba(0,0,0,0.5);
+  --bar-color-active: rgba(0,0,0,0.65);
+}
+
+v-scroll::part(scroll) {
+  display: block;
+  overflow: auto;
+  scrollbar-width: none;
+  height: 100%;
+  width: 100%;
+}
+
+v-scroll::part(content) {
+  display: block;
+}
+
+v-scroll::part(track) {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 100%;
+  z-index: 1;
+  background: var(--track-bg);
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+
+v-scroll::part(bar) {
+  position: absolute;
+  width: var(--bar-width);
+  right: calc((var(--track-width) - var(--bar-width)) / 2);
+  z-index: 2;
+  border-radius: 999px;
+  background: var(--bar-color);
+  user-select: none;
+  touch-action: none;
+  height: var(--bar-h, 0);
+  top: var(--bar-top, 0);
+  opacity: 0;
+  transition: background 0.15s, opacity 0.35s ease;
+}
+
+/* 1. hover 容器 → 显示抓手 */
+v-scroll:hover::part(bar turned) {
+  opacity: var(--bar-opacity, 0);
+}
+
+/* 2. hover 抓手 → track 展开 + 抓手变深 */
+v-scroll.bar-hover::part(track) {
+  width: var(--track-width);
+}
+
+v-scroll::part(bar turned):hover {
+  background: var(--bar-color-hover);
+}
+
+/* 3. 拖拽中 → track 展开 */
+v-scroll.drag::part(track) {
+  width: var(--track-width);
+}
+
+v-scroll::part(bar drag) {
+  opacity: var(--bar-opacity, 0);
+  background: var(--bar-color-active);
+}
+
+body.v-scroll-drag {
+  user-select: none;
+}

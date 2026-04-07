@@ -49,8 +49,9 @@ v-scroll::part(bar) {
   transition: background 0.15s, opacity 0.35s ease;
 }
 
-/* 1. hover 容器 → 显示抓手 */
-v-scroll:hover::part(bar turned) {
+/* 1. hover 容器 或 滚动中 → 显示抓手 */
+v-scroll:hover::part(bar turned),
+v-scroll.scrolling::part(bar turned) {
   opacity: var(--bar-opacity, 0);
 }
 

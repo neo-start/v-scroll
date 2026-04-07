@@ -131,7 +131,7 @@ const connect = host => {
   bar_el.addEventListener("mouseenter", () => host.classList.add("bar-hover"))
   bar_el.addEventListener("mouseleave", () => { if (!host.classList.contains("drag")) host.classList.remove("bar-hover") })
 
-  let raf_id = 0
+  let raf_id = 0, scroll_timer = 0
   const update = () => {
     if (raf_id) return
     raf_id = requestAnimationFrame(() => {
@@ -140,7 +140,14 @@ const connect = host => {
     })
   }
 
-  scroll_el.addEventListener("scroll", update, { passive: true })
+  const onScroll = () => {
+    update()
+    host.classList.add("scrolling")
+    clearTimeout(scroll_timer)
+    scroll_timer = setTimeout(() => host.classList.remove("scrolling"), 800)
+  }
+
+  scroll_el.addEventListener("scroll", onScroll, { passive: true })
 
   const ro = new ResizeObserver(update)
   ro.observe(scroll_el)
@@ -150,8 +157,10 @@ const connect = host => {
   })
 
   host._update = update
-  host._raf_id = () => raf_id
-  host._cancel_raf = () => { if (raf_id) { cancelAnimationFrame(raf_id); raf_id = 0 } }
+  host._cancel_raf = () => {
+    if (raf_id) { cancelAnimationFrame(raf_id); raf_id = 0 }
+    clearTimeout(scroll_timer)
+  }
   host._ro = ro
   host._cleanup_drag = setupDrag(host, scroll_el, track_el, bar_el)
   host._scroll_el = scroll_el

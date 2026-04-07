@@ -26,6 +26,7 @@ const cssToEsm = () => ({
 })
 
 export default defineConfig({
+  base: "/v-scroll/",
   plugins: [cssToEsm()],
   resolve: {
     alias: { "$": resolve(__dirname, "themes/default") }

@@ -14,6 +14,25 @@ A zero-dependency custom scrollbar web component built with native Web Component
 - Vite plugin: auto-generates CSS-as-JS module via `csso` minification
 - Import map support (`$/`) for theme switching
 
+## Interaction
+
+- Hover container: thumb fades in (0.35s ease)
+- Hover thumb: track expands from 0 to 14px width
+- Drag thumb: cursor switches to grab icon, content scrolls proportionally
+- Release / leave: track collapses, thumb fades out
+
+## Shadow DOM Structure
+
+```
+v-scroll (host, position: relative)
+  #shadow-root (open)
+    <b part="scroll">        scroll container (overflow: auto)
+      <b part="content">     content wrapper
+        <slot>               projects light DOM
+    <b part="track">          scrollbar track (full height, right side)
+    <b part="bar">            draggable thumb
+```
+
 ## Usage
 
 ```html
@@ -46,6 +65,7 @@ Or use `::part()` selectors:
 
 ```css
 v-scroll::part(scroll)  { /* scroll container */ }
+v-scroll::part(content) { /* content wrapper */ }
 v-scroll::part(track)   { /* scrollbar track */ }
 v-scroll::part(bar)     { /* draggable thumb */ }
 ```
@@ -57,6 +77,15 @@ Switch themes by changing the import map path:
   {"imports":{"$/":"/themes/my-theme/"}}
 </script>
 ```
+
+## Performance
+
+- `requestAnimationFrame` throttling on scroll events (one update per frame)
+- CSS variable writes skipped when values unchanged
+- Drag dimensions cached on `pointerdown`, not recalculated per `pointermove`
+- `passive: true` on scroll listener for smoother scrolling
+- Module-level flag for style injection (no DOM query)
+- Pending rAF cancelled on component disconnect
 
 ## Development
 

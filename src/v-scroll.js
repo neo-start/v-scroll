@@ -8,12 +8,14 @@ const svgCursor = (svg, x, y) =>
   `url("data:image/svg+xml,${encodeURIComponent(svg.trim())}") ${x} ${y}, auto`
 
 const CURSOR_SCROLL = svgCursor(svg_scroll, 10, 10),
-  CURSOR_GRAB = svgCursor(svg_grab, 7, 7)
+  CURSOR_GRAB = svgCursor(svg_grab, 7, 7),
+  CURSOR_CSS = `v-scroll::part(bar){cursor:${CURSOR_SCROLL}}v-scroll::part(bar drag),body.v-scroll-drag{cursor:${CURSOR_GRAB}}`
 
-const CURSOR_CSS = `v-scroll::part(bar){cursor:${CURSOR_SCROLL}}v-scroll::part(bar drag),body.v-scroll-drag{cursor:${CURSOR_GRAB}}`
+let styles_injected = false
 
 const injectStyles = () => {
-  if (document.querySelector("#v-scroll-styles")) return
+  if (styles_injected) return
+  styles_injected = true
   const el = document.createElement("style")
   el.id = "v-scroll-styles"
   el.textContent = css_text + CURSOR_CSS
@@ -28,9 +30,10 @@ const calcThumbTop = (scroll_top, max_scroll, track_h, thumb_h) =>
     : THUMB_PAD + (scroll_top / max_scroll) * (track_h - thumb_h - THUMB_PAD * 2)
 
 const setBarVars = (host, h, top, opacity) => {
-  host.style.setProperty("--bar-h", h)
-  host.style.setProperty("--bar-top", top)
-  host.style.setProperty("--bar-opacity", opacity)
+  const s = host.style
+  if (s.getPropertyValue("--bar-h") !== h) s.setProperty("--bar-h", h)
+  if (s.getPropertyValue("--bar-top") !== top) s.setProperty("--bar-top", top)
+  if (s.getPropertyValue("--bar-opacity") !== opacity) s.setProperty("--bar-opacity", opacity)
 }
 
 const updateBar = (host, scroll_el, track_el, bar_el) => {
@@ -43,7 +46,7 @@ const updateBar = (host, scroll_el, track_el, bar_el) => {
 
   if (!visible) {
     setBarVars(host, "0", "0", "0")
-    bar_el.part.remove("turned")
+    if (bar_el.part.contains("turned")) bar_el.part.remove("turned")
     return
   }
 
@@ -51,22 +54,16 @@ const updateBar = (host, scroll_el, track_el, bar_el) => {
     thumb_top = calcThumbTop(scroll_top, max_scroll, track_h, thumb_h)
 
   setBarVars(host, thumb_h + "px", (track_el.offsetTop + thumb_top) + "px", "1")
-  bar_el.part.add("turned")
+  if (!bar_el.part.contains("turned")) bar_el.part.add("turned")
 }
 
 const setupDrag = (host, scroll_el, track_el, bar_el) => {
-  let drag_y = 0, drag_scroll = 0
+  let drag_y = 0, drag_scroll = 0, drag_max = 0, drag_range = 0
 
   const onMove = e => {
-    const viewport_h = scroll_el.clientHeight,
-      content_h = scroll_el.scrollHeight,
-      track_h = track_el.clientHeight,
-      max_scroll = content_h - viewport_h,
-      thumb_h = calcThumb(viewport_h, content_h, track_h),
-      drag_range = track_h - thumb_h - THUMB_PAD * 2
     if (drag_range <= 0) return
     const delta = e.clientY - drag_y
-    scroll_el.scrollTop = Math.min(Math.max(drag_scroll + (delta / drag_range) * max_scroll, 0), max_scroll)
+    scroll_el.scrollTop = Math.min(Math.max(drag_scroll + (delta / drag_range) * drag_max, 0), drag_max)
   }
 
   const onEnd = e => {
@@ -82,8 +79,14 @@ const setupDrag = (host, scroll_el, track_el, bar_el) => {
 
   const onDown = e => {
     e.preventDefault()
+    const viewport_h = scroll_el.clientHeight,
+      content_h = scroll_el.scrollHeight,
+      track_h = track_el.clientHeight,
+      thumb_h = calcThumb(viewport_h, content_h, track_h)
     drag_y = e.clientY
     drag_scroll = scroll_el.scrollTop
+    drag_max = content_h - viewport_h
+    drag_range = track_h - thumb_h - THUMB_PAD * 2
     bar_el.part.add("drag")
     host.classList.add("drag")
     document.body?.classList.add("v-scroll-drag")
@@ -128,8 +131,16 @@ const connect = host => {
   bar_el.addEventListener("mouseenter", () => host.classList.add("bar-hover"))
   bar_el.addEventListener("mouseleave", () => { if (!host.classList.contains("drag")) host.classList.remove("bar-hover") })
 
-  const update = () => updateBar(host, scroll_el, track_el, bar_el)
-  scroll_el.addEventListener("scroll", update)
+  let raf_id = 0
+  const update = () => {
+    if (raf_id) return
+    raf_id = requestAnimationFrame(() => {
+      raf_id = 0
+      updateBar(host, scroll_el, track_el, bar_el)
+    })
+  }
+
+  scroll_el.addEventListener("scroll", update, { passive: true })
 
   const ro = new ResizeObserver(update)
   ro.observe(scroll_el)
@@ -139,6 +150,8 @@ const connect = host => {
   })
 
   host._update = update
+  host._raf_id = () => raf_id
+  host._cancel_raf = () => { if (raf_id) { cancelAnimationFrame(raf_id); raf_id = 0 } }
   host._ro = ro
   host._cleanup_drag = setupDrag(host, scroll_el, track_el, bar_el)
   host._scroll_el = scroll_el
@@ -146,6 +159,7 @@ const connect = host => {
 }
 
 const disconnect = host => {
+  host._cancel_raf?.()
   if (host._ro) { host._ro.disconnect(); host._ro = null }
   if (host._cleanup_drag) { host._cleanup_drag(); host._cleanup_drag = null }
   if (host._scroll_el) {
